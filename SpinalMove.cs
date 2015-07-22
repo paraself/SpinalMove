@@ -1,4 +1,10 @@
-﻿using UnityEngine;
+﻿/// <summary>
+/// Spinal Move is the locomotion controller for simulating creatures of spine.
+/// </summary>
+
+//Yves Wang @ FISH , 2015 All rights reserved
+
+using UnityEngine;
 using System.Collections;
 
 public class SpinalMove : MonoBehaviour {
@@ -6,16 +12,21 @@ public class SpinalMove : MonoBehaviour {
 	[Range(3,20)]
 	public int numberOfBones = 7;
 	
+	/// <summary>
+	/// The total length of the spinal creature
+	/// </summary>
 	[Range(1f,100f)]
 	public float length = 7f;
 	
-	public float anchorOffset = 1f;
-	
+	/// <summary>
+	/// The minimum angle between two adjacent bones. usually it goes 100-160 degrees
+	/// </summary>
 	[Range(30f,170f)]
 	public float minAngle;
+	float minDeltaAngle;
 	
 	[Range(0.1f,0.9f)]
-	public float stiffness = 0.3f;
+	public float stiffness = 0.3f;//how soon the spine will become straight from bending
 	
 	Vector2[] bones;
 	
@@ -23,16 +34,33 @@ public class SpinalMove : MonoBehaviour {
 	float boneLengthSqr;
 	
 	float stepLength;
-	public int maxStep = 50;
+	public int maxStep = 50;//internal calculation steps performed during each update to find the new position for bones
 	
-	//Steer locomotion
-	//public float maxSteerAngle;
+	/// <summary>
+	/// The max steer angle is the max angle by which the creature will be able to steer
+	/// </summary>
+	[Range(30f,120f)]
+	public float maxSteerAngle;
+	
+	/// <summary>
+	/// The current steer angle given by the move force controller, which is anohter script
+	/// </summary>
+	public float curSteerAngle; //assigned outside this script;
+	
+	public void SetCurSteerAngle(float angle) {
+		this.curSteerAngle = angle;
+	}
+	
+	int maxSteerSearchDepth,curSteerSearchDepth;
 
 	void Start () {
-	
+		
 		boneLength = length / numberOfBones;
 		boneLengthSqr = boneLength * boneLength;
 		stepLength = boneLength / maxStep;
+		
+		maxSteerSearchDepth = Mathf.CeilToInt( maxSteerAngle / (180f - minAngle));
+		
 		Debug.Log(stepLength);
 	
 		if (bones==null) {
@@ -47,11 +75,27 @@ public class SpinalMove : MonoBehaviour {
 	void Update(){
 
 		if (bones == null) return;
+		
+		/*
+		//steer
+		minDeltaAngle = (180f - minAngle);
+		if (curSteerAngle<0) minDeltaAngle = -minDeltaAngle;
+		
+		curSteerSearchDepth =  Mathf.CeilToInt(curSteerAngle / minDeltaAngle);
+		if (curSteerSearchDepth > maxSteerSearchDepth) curSteerSearchDepth = maxSteerSearchDepth;
+		for (int i=curSteerSearchDepth;i>0;i--) {
+			bones[i-1] = RotatePoint2D(bones[i-1],bones[i],minDeltaAngle * 0.5f);
+		}
+		*/
+		
+		
+		
 		Vector2 prePos = bones[0];
-		bones[0] = this.transform.position + this.transform.up * anchorOffset;
+		bones[0] = this.transform.position + this.transform.up * boneLength;
+		bones[1] = this.transform.position;
 		
 		//position constraint
-		for (int i=1;i<numberOfBones;i++) {
+		for (int i=2;i<numberOfBones;i++) {
 			Vector2 newPos = Move (bones[i],prePos, bones[i-1]);
 			prePos = bones[i];
 			bones[i] = newPos;
@@ -129,7 +173,7 @@ public class SpinalMove : MonoBehaviour {
 		if (Application.isPlaying==false) {
 			float boneL = length / numberOfBones;
 			Vector2 posP,posN;
-			posP = (Vector2)(this.transform.position + this.transform.up * anchorOffset);
+			posP = (Vector2)(this.transform.position);
 			Gizmos.DrawWireSphere(posP,0.1f);
 			for (int i=0;i<numberOfBones;i++) {
 				posN = posP - (Vector2)this.transform.up * boneL;
